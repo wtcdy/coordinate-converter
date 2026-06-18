@@ -1,0 +1,91 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e8]: 坐标系转换工具
+      - generic [ref=e10]: WGS-84 · CGCS2000 · GCJ-02 · BD-09
+  - generic [ref=e11]:
+    - tablist [ref=e15]:
+      - tab "单点转换" [selected] [ref=e16] [cursor=pointer]: 单点转换
+      - tab "批量转换" [ref=e17] [cursor=pointer]: 批量转换
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - heading "单点坐标转换" [level=6] [ref=e22]
+        - separator [ref=e23]
+        - generic [ref=e24]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: 源坐标系
+            - generic [ref=e28]:
+              - combobox [ref=e29] [cursor=pointer]:
+                - generic [ref=e30]: WGS-84GPS原始坐标系，国际标准
+              - textbox: WGS84
+              - img
+              - group:
+                - generic: 源坐标系
+          - button "交换源/目标坐标系" [ref=e32] [cursor=pointer]:
+            - img [ref=e33]
+          - generic [ref=e36]:
+            - generic [ref=e37]: 目标坐标系
+            - generic [ref=e38]:
+              - combobox [ref=e39] [cursor=pointer]:
+                - generic [ref=e40]: GCJ-02火星坐标系，高德/腾讯地图
+              - textbox: GCJ02
+              - img
+              - group:
+                - generic: 目标坐标系
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - generic [ref=e43]: 经度, 纬度
+            - generic [ref=e44]:
+              - textbox "经度, 纬度" [ref=e45]:
+                - /placeholder: "如: 116.404, 39.915（逗号或空格分隔）"
+                - text: 116.404, 39.915
+              - group:
+                - generic: 经度, 纬度
+          - button "切换经纬度顺序" [ref=e46] [cursor=pointer]:
+            - img [ref=e47]
+        - button "转换" [active] [ref=e50] [cursor=pointer]:
+          - img [ref=e52]
+          - text: 转换
+        - generic [ref=e55]:
+          - separator [ref=e56]
+          - heading "转换结果 (WGS-84 → GCJ-02)" [level=6] [ref=e57]
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - paragraph [ref=e60]: "经度: 116.410244"
+              - paragraph [ref=e61]: "纬度: 39.916404"
+            - generic [ref=e62]:
+              - button "切换结果经纬度顺序" [ref=e63] [cursor=pointer]:
+                - img [ref=e64]
+              - button "复制结果" [ref=e66] [cursor=pointer]:
+                - img [ref=e67]
+      - generic [ref=e69]:
+        - heading "地图位置对比" [level=6] [ref=e70]
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - generic [ref=e74]: 腾讯地图 (GCJ-02)
+            - group [ref=e75]:
+              - button "腾讯地图" [pressed] [ref=e76] [cursor=pointer]: 腾讯地图
+              - button "百度地图" [ref=e77] [cursor=pointer]: 百度地图
+              - button "OpenStreetMap" [ref=e78] [cursor=pointer]: OpenStreetMap
+          - generic [ref=e79]:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - button [ref=e80] [cursor=pointer]
+                - button [ref=e82] [cursor=pointer]
+            - generic:
+              - generic [ref=e84]:
+                - button "Zoom in" [disabled] [ref=e85]: +
+                - button "Zoom out" [ref=e86] [cursor=pointer]: −
+              - generic [ref=e87]:
+                - link "Leaflet" [ref=e88] [cursor=pointer]:
+                  - /url: https://leafletjs.com
+                  - img [ref=e89]
+                  - text: Leaflet
+                - text: "| 腾讯地图"
+        - generic [ref=e93]:
+          - generic [ref=e96]: 源坐标 (WGS-84)
+          - generic [ref=e99]: 目标坐标 (GCJ-02)
+  - contentinfo [ref=e54]: 坐标系转换工具 · 支持 WGS-84 / CGCS2000 / GCJ-02 / BD-09 互转
