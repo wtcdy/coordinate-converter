@@ -436,8 +436,8 @@ describe("腾讯地图瓦片", () => {
     expect(source).toMatch(/case\s+["']tencent["']/);
     // baidu 类型分支
     expect(source).toMatch(/case\s+["']baidu["']/);
-    // osm 回退分支
-    expect(source).toContain("openstreetmap.org");
+    // osm/Esri 回退分支
+    expect(source).toContain("arcgisonline.com");
   });
 });
 

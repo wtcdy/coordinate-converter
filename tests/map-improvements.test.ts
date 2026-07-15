@@ -299,13 +299,10 @@ describe("百度地图瓦片验证", () => {
     expect(source).toMatch(/case\s+["']baidu["']/);
   });
 
-  it("百度地图瓦片 URL 格式应正确", () => {
-    // 百度瓦片使用 onlinelabel 接口（带标注瓦片），域名格式 online{s}.map.bdimg.com
-    // 也接受 maponline{s}.bdimg.com/tile/?qt=vtile 格式
-    const hasBaiduTileUrl =
-      source.includes("https://online{s}.map.bdimg.com/onlinelabel/?qt=tile") ||
-      source.includes("https://maponline{s}.bdimg.com/tile/?qt=vtile");
-    expect(hasBaiduTileUrl).toBe(true);
+  it("百度地图使用 BaiduMapContainer 组件（JS API 而非瓦片 URL）", () => {
+    // 修复后百度地图不再使用 Leaflet 瓦片加载，而是使用百度地图 JS API
+    // 验证 MapPreview 中引用了 BaiduMapContainer
+    expect(source).toContain("BaiduMapContainer");
   });
 
   it("百度地图瓦片应配置 tms: true", () => {
@@ -575,12 +572,15 @@ describe("切换瓦片时标记重新计算", () => {
   });
 
   it("切换瓦片 useEffect 应依赖 mapType", () => {
-    // 验证切换瓦片的 useEffect 依赖数组包含 mapType
-    const tileEffectMatch = source.match(
-      /切换地图类型时更换瓦片层[\s\S]*?useEffect\(\(\) => \{[\s\S]*?\}, \[([^\]]*)\]\)/
+    // 验证地图类型切换相关的 useEffect 依赖数组包含 mapType
+    // 修复后百度地图由 BaiduMapContainer 处理，Leaflet 部分的 useEffect 仍依赖 mapType
+    const useEffectMatches = source.match(
+      /useEffect\(\(\) => \{[\s\S]*?\}, \[[^\]]*\]\)/g
     );
-    expect(tileEffectMatch).not.toBeNull();
-    expect(tileEffectMatch![1]).toContain("mapType");
+    expect(useEffectMatches).not.toBeNull();
+    // 至少有一个 useEffect 依赖 mapType（Leaflet 瓦片切换）
+    const mapTypeEffects = useEffectMatches!.filter((m) => m.includes("mapType"));
+    expect(mapTypeEffects.length).toBeGreaterThan(0);
   });
 });
 

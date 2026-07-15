@@ -1,7 +1,7 @@
 /**
  * 地图预览组件
- * 使用Leaflet显示转换前后的坐标位置对比
- * 支持OpenStreetMap、腾讯地图和百度地图瓦片切换
+ * 使用Leaflet显示转换前后的坐标位置对比（Esri和腾讯地图）
+ * 使用百度地图JS API显示百度地图（解决SSL证书问题）
  * 支持单点模式（sourcePoint + targetPoint + 连线）和多点模式（points数组）
  * 支持坐标与瓦片对齐：根据当前瓦片坐标系自动转换标记坐标
  */
@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import type { LngLat, CoordinateSystem } from "../types/coordinate";
 import { convert } from "../utils/coordinateTransform";
-import { BaiduCRS, createBaiduTileLayer } from "../utils/baiduCRS";
+import BaiduMapContainer from "./BaiduMapContainer";
 
 /** 地图瓦片类型 */
 type MapType = "osm" | "tencent" | "baidu";
@@ -91,7 +91,7 @@ function getMapCoordinateLabel(mapType: MapType): string {
     case "baidu":
       return "百度地图 (BD-09)";
     case "osm":
-      return "OpenStreetMap (WGS-84)";
+      return "Esri World Streets (WGS-84)";
     default:
       return "";
   }
@@ -146,12 +146,12 @@ function alignToTile(
 }
 
 /**
- * 根据地图类型创建瓦片图层
+ * 根据地图类型创建瓦片图层（仅用于 OSM 和腾讯地图）
  *
  * @param mapType 地图瓦片类型
  * @returns Leaflet瓦片图层
  */
-function createTileLayer(mapType: MapType): L.TileLayer {
+function createTileLayer(mapType: "osm" | "tencent"): L.TileLayer {
   switch (mapType) {
     case "tencent":
       // 腾讯地图瓦片，使用GCJ-02坐标系，TMS方式（y轴翻转）
@@ -164,25 +164,13 @@ function createTileLayer(mapType: MapType): L.TileLayer {
           maxZoom: 18,
         }
       );
-    case "baidu":
-      // 百度地图瓦片，使用BD-09坐标系
-      // 使用 onlinelabel 接口（返回带标注的瓦片）
-      // 不使用 tms: true，百度瓦片 Y 坐标由 BaiduTileLayer 自定义处理（y = -coords.y - 1）
-      return createBaiduTileLayer(
-        "https://online{s}.map.bdimg.com/onlinelabel/?qt=tile&x={x}&y={y}&z={z}&styles=pl&scaler=1",
-        {
-          subdomains: ["1", "2", "3"],
-          attribution: "百度地图",
-          maxZoom: 18,
-        }
-      );
     case "osm":
     default:
-      // OpenStreetMap瓦片，使用WGS-84坐标系
+      // Esri World Street Map，WGS-84坐标系，国内可访问
       return L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
         {
-          attribution: "&copy; OpenStreetMap contributors",
+          attribution: "Esri, HERE, Garmin",
           maxZoom: 18,
         }
       );
@@ -192,7 +180,7 @@ function createTileLayer(mapType: MapType): L.TileLayer {
 /**
  * 地图预览组件
  * 支持单点模式（sourcePoint + targetPoint + 连线）和多点模式（points数组）
- * 支持OpenStreetMap、腾讯地图和百度地图瓦片切换
+ * 支持OpenStreetMap、腾讯地图（Leaflet）和百度地图（JS API）切换
  * 支持坐标与瓦片对齐
  */
 export default function MapPreview({
@@ -212,16 +200,12 @@ export default function MapPreview({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   const [mapType, setMapType] = useState<MapType>("tencent");
-  /** 当前地图使用的 CRS，用于检测是否需要重建地图 */
-  const currentCRSRef = useRef<L.CRS>(L.CRS.EPSG3857);
-
-  /** 获取指定地图类型对应的 CRS */
-  const getMapCRS = useCallback((type: MapType): L.CRS => {
-    return type === "baidu" ? BaiduCRS : L.CRS.EPSG3857;
-  }, []);
 
   /** 是否为多点模式 */
   const isBatchMode: boolean = !!points && points.length > 0;
+
+  /** 当前地图使用的瓦片类型（仅 OSM 和腾讯使用 Leaflet） */
+  const leafletTileTypeRef = useRef<"osm" | "tencent">("tencent");
 
   /** 创建弹出窗口内容，包含坐标和坐标系标注 */
   const buildPopupContent = useCallback(
@@ -232,19 +216,16 @@ export default function MapPreview({
     [mapType]
   );
 
-  // 初始化地图
+  // 初始化 Leaflet 地图
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-
-    const crs: L.CRS = getMapCRS("tencent");
-    currentCRSRef.current = crs;
 
     const map: L.Map = L.map(containerRef.current, {
       center: [39.9, 116.4],
       zoom: 10,
       zoomControl: true,
       attributionControl: true,
-      crs: crs,
+      crs: L.CRS.EPSG3857,
     });
 
     // 根据默认地图类型添加瓦片层
@@ -253,75 +234,61 @@ export default function MapPreview({
     tileLayerRef.current = tileLayer;
 
     mapRef.current = map;
+    leafletTileTypeRef.current = "tencent";
 
     return () => {
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
     };
-  }, [getMapCRS]);
+  }, []);
 
-  // 切换地图类型时更换瓦片层（或重建地图以切换 CRS）
+  // 切换地图类型时处理
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !containerRef.current) return;
 
-    const newCRS: L.CRS = getMapCRS(mapType);
-
-    // 检测 CRS 是否发生变化（百度 <-> 其他）
-    if (newCRS !== currentCRSRef.current) {
-      // CRS 发生变化，需要销毁旧地图并创建新地图
-      map.remove();
-      mapRef.current = null;
-      tileLayerRef.current = null;
-      sourceMarkerRef.current = null;
-      targetMarkerRef.current = null;
-      lineRef.current = null;
-
-      if (markersGroupRef.current) {
-        markersGroupRef.current = null;
-      }
-
-      currentCRSRef.current = newCRS;
-
-      const newMap: L.Map = L.map(containerRef.current, {
-        center: [39.9, 116.4],
-        zoom: 10,
-        zoomControl: true,
-        attributionControl: true,
-        crs: newCRS,
-      });
-
-      const tileLayer: L.TileLayer = createTileLayer(mapType);
-      tileLayer.addTo(newMap);
-      tileLayerRef.current = tileLayer;
-
-      mapRef.current = newMap;
+    // 百度地图由 BaiduMapContainer 组件独立处理，无需操作 Leaflet
+    if (mapType === "baidu") {
       return;
     }
 
-    // CRS 未变，仅更换瓦片层
+    // 仅 OSM 和腾讯地图需要操作 Leaflet
+    const newTileType: "osm" | "tencent" = mapType;
+    const currentTileType = leafletTileTypeRef.current;
+
+    // 如果瓦片类型未变，无需更换
+    if (newTileType === currentTileType) {
+      // 刷新地图尺寸（可能从百度切回来）
+      map.invalidateSize();
+      return;
+    }
+
+    // 更换瓦片层
     if (tileLayerRef.current) {
       tileLayerRef.current.remove();
       tileLayerRef.current = null;
     }
 
-    // 添加新瓦片层
-    const tileLayer: L.TileLayer = createTileLayer(mapType);
+    const tileLayer: L.TileLayer = createTileLayer(newTileType);
     tileLayer.addTo(map);
     tileLayerRef.current = tileLayer;
+    leafletTileTypeRef.current = newTileType;
 
     // 确保瓦片层在标记下方
     tileLayer.bringToBack();
 
     // 刷新地图尺寸
     map.invalidateSize();
-  }, [mapType, getMapCRS]);
+  }, [mapType]);
 
-  // 更新标记和视图（单点模式 + 多点模式 统一处理）
+  // 更新 Leaflet 标记和视图（仅 OSM 和腾讯地图）
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    // 百度地图标记由 BaiduMapContainer 处理
+    if (mapType === "baidu") return;
 
     // 清除旧标记
     if (sourceMarkerRef.current) {
@@ -447,6 +414,19 @@ export default function MapPreview({
     buildPopupContent,
   ]);
 
+  /** 当从百度地图切回 Leaflet 时刷新地图尺寸 */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || mapType === "baidu") return;
+
+    // 延迟刷新以确保 display 切换后 DOM 更新完成
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [mapType]);
+
   return (
     <Box
       sx={{
@@ -486,22 +466,47 @@ export default function MapPreview({
             百度地图
           </ToggleButton>
           <ToggleButton value="osm" sx={{ py: 0, px: 1.5, fontSize: 12 }}>
-            OpenStreetMap
+            Esri
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
-      {/* 地图容器 */}
-      <div
-        ref={containerRef}
-        style={{
+      {/* 地图容器区域：Leaflet 和百度地图并排，通过 display 控制显隐 */}
+      <Box
+        sx={{
           flex: 1,
           width: "100%",
+          position: "relative",
           minHeight: isBatchMode ? "400px" : "250px",
-          borderRadius: "8px",
-          overflow: "hidden",
         }}
-      />
+      >
+        {/* Leaflet 地图容器（OSM + 腾讯） */}
+        <div
+          ref={containerRef}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            display: mapType !== "baidu" ? "block" : "none",
+            borderRadius: "8px",
+            overflow: "hidden",
+          }}
+        />
+
+        {/* 百度地图容器 */}
+        <BaiduMapContainer
+          sourcePoint={sourcePoint}
+          targetPoint={targetPoint}
+          sourceLabel={sourceLabel}
+          targetLabel={targetLabel}
+          points={points}
+          targetSystem={targetSystem}
+          sourceSystem={sourceSystem}
+          visible={mapType === "baidu"}
+        />
+      </Box>
     </Box>
   );
 }
