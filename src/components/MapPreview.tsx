@@ -166,7 +166,8 @@ function createTileLayer(mapType: "osm" | "tencent"): L.TileLayer {
       );
     case "osm":
     default:
-      // Esri World Street Map，WGS-84坐标系，国内可访问
+      // Esri World Street Map, WGS-84, accessible in China
+      // HELLO_TEST - this is a test comment to verify build picks up changes
       return L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
         {
